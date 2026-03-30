@@ -48,6 +48,7 @@ endif
 	@make -C graphic all
 	#@make -C media all
 	@make -C utilities_example all
+	@make -C libpeer all
 	@make -C file_system all
 	@make -C project all
 	@make -C application all
@@ -78,6 +79,7 @@ clean:
 	@make -C audio clean
 	@make -C graphic clean
 	@make -C utilities_example clean
+	@make -C libpeer clean
 	@make -C file_system clean	
 	@make -C project clean
 	@make -C ui clean

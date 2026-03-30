@@ -229,6 +229,7 @@
 
 /* For MQTT example */
 #define CONFIG_EXAMPLE_MQTT				0
+#define CONFIG_EXAMPLE_LIBPEER				1
 
 /* for CoAP example*/
 #define CONFIG_EXAMPLE_COAP		0

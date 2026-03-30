@@ -144,6 +144,10 @@
 #include <mqtt/example_mqtt.h>
 #endif
 
+#if defined(CONFIG_EXAMPLE_LIBPEER) && CONFIG_EXAMPLE_LIBPEER
+#include <libpeer/example_libpeer.h>
+#endif
+
 #if CONFIG_EXAMPLE_FATFS
 #include <fatfs/example_fatfs.h>
 #endif
@@ -659,6 +663,10 @@ void example_entry(void)
 
 #if CONFIG_EXAMPLE_MQTT
 	example_mqtt();
+#endif
+
+#if defined(CONFIG_EXAMPLE_LIBPEER) && CONFIG_EXAMPLE_LIBPEER
+        example_libpeer();
 #endif
 
 #if CONFIG_QQ_LINK

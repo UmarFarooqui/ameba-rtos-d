@@ -20,7 +20,7 @@ CSRC +=  \
 	$(DIR)/ssl_client_ext.c \
 	$(DIR)/http_client.c \
 	$(DIR)/xml.c \
-	$(DIR)/cJSON.c \
+	#$(DIR)/cJSON.c \
 	#$(DIR)/webserver.c
 
 #*****************************************************************************#

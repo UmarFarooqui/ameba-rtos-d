@@ -76,7 +76,6 @@ CSRC += $(DIR)/game_headset_dongle/example_game_headset_dongle.c
 CSRC += $(DIR)/http_client/example_http_client.c
 CSRC += $(DIR)/http_download/example_http_download.c
 CSRC += $(DIR)/mcast/example_mcast.c
-CSRC += $(DIR)/mdns/example_mdns.c
 CSRC += $(DIR)/nonblock_connect/example_nonblock_connect.c
 CSRC += $(DIR)/rarp/example_rarp.c
 CSRC += $(DIR)/sntp_showtime/example_sntp_showtime.c
@@ -109,7 +108,6 @@ CSRC += $(DIR)/wifi_roaming/example_wifi_roaming.c
 CSRC += $(DIR)/wifi_connection_priority/example_wifi_conn_pri_cond.c
 CSRC += $(DIR)/uart_firmware_update/example_uart_update.c
 CSRC += $(DIR)/ipv6/example_ipv6.c
-CSRC += $(DIR)/cJSON/example_cJSON.c
 CSRC += $(DIR)/sdcard_upload_httpd/example_sdcard_upload_httpd.c
 CSRC += $(DIR)/socket_tcp_trx/example_socket_tcp_trx_1.c
 CSRC += $(DIR)/socket_tcp_trx/example_socket_tcp_trx_2.c
@@ -208,6 +206,21 @@ ifeq ($(CONFIG_LINKKIT_AWSS), y)
 #linkkit
 CSRC += $(DIR)/linkkit/linkkit_awss_example.c
 endif
+
+
+
+MODULE_IFLAGS += -DHAVE_UINT64_T=1
+MODULE_IFLAGS += -DHAVE_UINT32_T=1
+MODULE_IFLAGS += -DHAVE_UINT16_T=1
+MODULE_IFLAGS += -DHAVE_UINT8_T=1
+MODULE_IFLAGS += -DHAVE_INT32_T=1
+MODULE_IFLAGS += -I$(BASEDIR)/component/common/network/lwip/lwip_v2.0.2/src/include
+MODULE_IFLAGS += -I$(BASEDIR)/component/common/network/lwip/lwip_v2.0.2/port/realtek
+
+vpath %.c $(BASEDIR)/component/common/network/ssl/mbedtls-3.4.0/library
+
+
+
 
 #*****************************************************************************#
 #                               Object FILE LIST                              #
