@@ -273,8 +273,6 @@ lp_srtp_rdbx.c:
 lp_mbedtls_timing.c:
 	cp /home/uafarooq/esp/ameba-rtos-d/component/common/network/ssl/mbedtls-3.4.0/library/timing.c lp_mbedtls_timing.c
 
-lp_timing.c:
-	cp /home/uafarooq/esp/ameba-rtos-d/component/common/network/ssl/mbedtls-3.4.0/library/timing.c lp_timing.c
 
 lp_example_libpeer.c:
 	cp $(LIBPEER_DIR)/example_libpeer.c lp_example_libpeer.c
@@ -350,11 +348,10 @@ CSRC += lp_srtp_datatypes.c
 CSRC += lp_srtp_rdb.c
 CSRC += lp_srtp_rdbx.c
 CSRC += lp_mbedtls_timing.c
-CSRC += lp_timing.c
 CSRC += lp_example_libpeer.c
 CSRC += lp_mbedtls_stubs.c
 
-OBJS = lp_usrsctp_sctp_asconf.o lp_usrsctp_sctp_auth.o lp_usrsctp_sctp_bsd_addr.o lp_usrsctp_sctp_callout.o lp_usrsctp_sctp_cc_functions.o lp_usrsctp_sctp_crc32.o lp_usrsctp_sctp_indata.o lp_usrsctp_sctp_input.o lp_usrsctp_sctp_output.o lp_usrsctp_sctp_pcb.o lp_usrsctp_sctp_peeloff.o lp_usrsctp_sctp_sha1.o lp_usrsctp_sctp_ss_functions.o lp_usrsctp_sctp_sysctl.o lp_usrsctp_sctp_timer.o lp_usrsctp_sctp_userspace.o lp_usrsctp_sctp_usrreq.o lp_usrsctp_sctputil.o lp_usrsctp_sctp6_usrreq.o lp_usrsctp_user_environment.o lp_usrsctp_user_mbuf.o lp_usrsctp_user_recv_thread.o lp_usrsctp_user_socket.o lp_address.o lp_agent.o lp_base64.o lp_dtls_srtp.o lp_ice.o lp_mdns.o lp_peer.o lp_peer_connection.o lp_peer_signaling.o lp_ports.o lp_rtcp.o lp_rtp.o lp_sctp.o lp_sdp.o lp_socket.o lp_ssl_transport.o lp_stun.o lp_utils.o lp_core_mqtt.o lp_core_mqtt_state.o lp_core_mqtt_serializer.o lp_cJSON.o lp_core_http_client.o lp_llhttp.o lp_llhttp_api.o lp_llhttp_http.o lp_srtp_srtp.o lp_srtp_cipher.o lp_srtp_null_cipher.o lp_srtp_aes.o lp_srtp_aes_icm.o lp_srtp_cipher_test_cases.o lp_srtp_auth.o lp_srtp_null_auth.o lp_srtp_hmac.o lp_srtp_sha1.o lp_srtp_auth_test_cases.o lp_srtp_alloc.o lp_srtp_crypto_kernel.o lp_srtp_err.o lp_srtp_key.o lp_srtp_datatypes.o lp_srtp_rdb.o lp_srtp_rdbx.o lp_mbedtls_timing.o lp_timing.o lp_example_libpeer.o lp_mbedtls_stubs.o
+OBJS = lp_usrsctp_sctp_asconf.o lp_usrsctp_sctp_auth.o lp_usrsctp_sctp_bsd_addr.o lp_usrsctp_sctp_callout.o lp_usrsctp_sctp_cc_functions.o lp_usrsctp_sctp_crc32.o lp_usrsctp_sctp_indata.o lp_usrsctp_sctp_input.o lp_usrsctp_sctp_output.o lp_usrsctp_sctp_pcb.o lp_usrsctp_sctp_peeloff.o lp_usrsctp_sctp_sha1.o lp_usrsctp_sctp_ss_functions.o lp_usrsctp_sctp_sysctl.o lp_usrsctp_sctp_timer.o lp_usrsctp_sctp_userspace.o lp_usrsctp_sctp_usrreq.o lp_usrsctp_sctputil.o lp_usrsctp_sctp6_usrreq.o lp_usrsctp_user_environment.o lp_usrsctp_user_mbuf.o lp_usrsctp_user_recv_thread.o lp_usrsctp_user_socket.o lp_address.o lp_agent.o lp_base64.o lp_dtls_srtp.o lp_ice.o lp_mdns.o lp_peer.o lp_peer_connection.o lp_peer_signaling.o lp_ports.o lp_rtcp.o lp_rtp.o lp_sctp.o lp_sdp.o lp_socket.o lp_ssl_transport.o lp_stun.o lp_utils.o lp_core_mqtt.o lp_core_mqtt_state.o lp_core_mqtt_serializer.o lp_cJSON.o lp_core_http_client.o lp_llhttp.o lp_llhttp_api.o lp_llhttp_http.o lp_srtp_srtp.o lp_srtp_cipher.o lp_srtp_null_cipher.o lp_srtp_aes.o lp_srtp_aes_icm.o lp_srtp_cipher_test_cases.o lp_srtp_auth.o lp_srtp_null_auth.o lp_srtp_hmac.o lp_srtp_sha1.o lp_srtp_auth_test_cases.o lp_srtp_alloc.o lp_srtp_crypto_kernel.o lp_srtp_err.o lp_srtp_key.o lp_srtp_datatypes.o lp_srtp_rdb.o lp_srtp_rdbx.o lp_mbedtls_timing.o lp_example_libpeer.o lp_mbedtls_stubs.o
 
 %.o: %.c
 	$(CC) $(GLOBAL_CFLAGS) $(MODULE_IFLAGS) $< -o $@
