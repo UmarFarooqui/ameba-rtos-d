@@ -13,20 +13,17 @@
 #include <errno.h>
 #include <string.h>
 
-/* AmebaD hardware entropy source for mbedTLS */
-extern u32 Gen_RandomSeed(void);
-
+/*
+ * mbedtls_hardware_poll() is now provided by the PAL
+ * (pal/rtl8721dm/ports_rtl8721dm.c) as ports_hardware_entropy().
+ * The mbedTLS config maps MBEDTLS_ENTROPY_HARDWARE_ALT to call it.
+ *
+ * However, mbedTLS expects the symbol name "mbedtls_hardware_poll",
+ * so we provide a thin wrapper here.
+ */
+#include "ports.h"
 int mbedtls_hardware_poll(void *data, unsigned char *output, size_t len, size_t *olen) {
-    (void)data;
-    size_t i = 0;
-    while (i < len) {
-        u32 rnd = Gen_RandomSeed();
-        size_t copy = (len - i < 4) ? (len - i) : 4;
-        memcpy(output + i, &rnd, copy);
-        i += copy;
-    }
-    *olen = len;
-    return 0;
+    return ports_hardware_entropy(data, output, len, olen);
 }
 
 /* Define in6addr_any for usrsctp */
@@ -109,7 +106,7 @@ static void peer_signaling_task(void *param) {
 }
 
 static void libpeer_task(void *param) {
-    printf("\n=== LIBPEER BUILD 20260403-U ===\n\n");
+    printf("\n=== LIBPEER BUILD 20260406-V (PAL refactor) ===\n\n");
     // Wait for WiFi
     printf("[libpeer] Connecting to WiFi: %s\n", WIFI_SSID);
     while (wifi_connect(WIFI_SSID, RTW_SECURITY_WPA2_AES_PSK,

@@ -3,6 +3,7 @@ include $(MAKE_INCLUDE_GEN)
 .PHONY: all clean
 
 LIBPEER_SRC = $(BASEDIR)/../libpeer/src
+LIBPEER_PAL = $(BASEDIR)/../libpeer/pal/rtl8721dm
 COREMQTT_DIR = $(BASEDIR)/../libpeer/third_party/coreMQTT/source
 CJSON_DIR = $(BASEDIR)/../libpeer/third_party/cJSON
 COREHTTP_DIR = /home/uafarooq/esp/libpeer/third_party/coreHTTP/source
@@ -104,7 +105,7 @@ lp_peer_signaling.c:
 	cp $(LIBPEER_SRC)/peer_signaling.c lp_peer_signaling.c
 
 lp_ports.c:
-	cp $(LIBPEER_SRC)/ports.c lp_ports.c
+	cp $(LIBPEER_PAL)/ports_rtl8721dm.c lp_ports.c
 
 lp_rtcp.c:
 	cp $(LIBPEER_SRC)/rtcp.c lp_rtcp.c
