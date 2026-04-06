@@ -477,7 +477,7 @@
  *
  * Uncomment to use your own hardware entropy collector.
  */
-//#define MBEDTLS_ENTROPY_HARDWARE_ALT
+#define MBEDTLS_ENTROPY_HARDWARE_ALT
 
 /**
  * \def MBEDTLS_AES_ROM_TABLES
@@ -3740,7 +3740,9 @@
  *
  * Uncomment to set the maximum plaintext size of the incoming I/O buffer.
  */
-#define MBEDTLS_SSL_IN_CONTENT_LEN              16384
+#ifndef MBEDTLS_SSL_IN_CONTENT_LEN
+#define MBEDTLS_SSL_IN_CONTENT_LEN              4096
+#endif
 
 /** \def MBEDTLS_SSL_CID_IN_LEN_MAX
  *
@@ -3790,7 +3792,9 @@
  *
  * Uncomment to set the maximum plaintext size of the outgoing I/O buffer.
  */
-#define MBEDTLS_SSL_OUT_CONTENT_LEN             16384
+#ifndef MBEDTLS_SSL_OUT_CONTENT_LEN
+#define MBEDTLS_SSL_OUT_CONTENT_LEN             2048
+#endif
 
 /** \def MBEDTLS_SSL_DTLS_MAX_BUFFERING
  *
