@@ -305,9 +305,6 @@ int peer_connection_loop(PeerConnection* pc) {
 
     case PEER_CONNECTION_CHECKING: {
       static int check_log_count = 0;
-      if (check_log_count % 50 == 0) {
-        printf("[T+%dms] loop iter=%d\n", (int)ports_get_epoch_time(), check_log_count);
-      }
       int sel = agent_select_candidate_pair(&pc->agent);
       if (sel < 0) {
         printf("[libpeer] All candidate pairs failed\n");
@@ -316,13 +313,11 @@ int peer_connection_loop(PeerConnection* pc) {
         printf("[T+%dms] Connectivity check succeeded!\n", (int)ports_get_epoch_time());
         STATE_CHANGED(pc, PEER_CONNECTION_CONNECTED);
       } else {
-        if (check_log_count % 50 == 0) {
-          printf("[libpeer] Checking... (pair=%d conncheck=%d)\n",
-                 pc->agent.nominated_pair ? (int)(pc->agent.nominated_pair - pc->agent.candidate_pairs) : -1,
+        if (check_log_count++ % 500 == 0) {
+          printf("[libpeer] Checking... (pair conncheck=%d)\n",
                  pc->agent.nominated_pair ? pc->agent.nominated_pair->conncheck : -1);
         }
       }
-      check_log_count++;
     } break;
 
     case PEER_CONNECTION_CONNECTED:
@@ -530,6 +525,11 @@ static const char* peer_connection_create_sdp(PeerConnection* pc, SdpType sdp_ty
   sdp_append(pc->sdp, description);
 
   printf("[T+%dms] SDP ready (local_candidates=%d)\n", (int)ports_get_epoch_time(), pc->agent.local_candidates_count);
+
+  if (pc->onicecandidate) {
+    pc->onicecandidate(pc->sdp, pc->config.user_data);
+  }
+
   {
     int ci;
     for (ci = 0; ci < pc->agent.local_candidates_count; ci++) {
@@ -545,11 +545,6 @@ static const char* peer_connection_create_sdp(PeerConnection* pc, SdpType sdp_ty
       printf("[SDP] local candidate %d: %s:%d typ %s\n", ci, ca, pc->agent.local_candidates[ci].addr.port, typ);
     }
   }
-
-  if (pc->onicecandidate) {
-    pc->onicecandidate(pc->sdp, pc->config.user_data);
-  }
-
   printf("[T+%dms] SDP offer published\n", (int)ports_get_epoch_time());
   return pc->sdp;
 }
