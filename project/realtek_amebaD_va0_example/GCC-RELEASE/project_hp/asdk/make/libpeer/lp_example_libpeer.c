@@ -29,9 +29,27 @@ int mbedtls_hardware_poll(void *data, unsigned char *output, size_t len, size_t 
 /* Define in6addr_any for usrsctp */
 const struct in6_addr in6addr_any = {{{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}};
 
-#define WIFI_SSID      "MyAltice 30331f"
-#define WIFI_PASSWORD  "chestnut-996-310"
-#define SIGNALING_URL  "mqtts://broker.emqx.io:8883/public/spotted-smart-eagle"
+#define WIFI_SSID      "resideo-singh"
+#define WIFI_PASSWORD  "12345678"
+
+/* ---- Signaling mode ---- */
+// Uncomment ONE of the following to select signaling method:
+//#define USE_MQTT_SIGNALING    // MQTT via broker.emqx.io (browser test page)
+#define USE_WHIP_SIGNALING  // WHIP via LiveKit
+
+#ifdef USE_WHIP_SIGNALING
+  /* LiveKit WHIP configuration.
+   * Generate a token at https://cloud.livekit.io or via livekit-cli:
+   *   livekit-cli create-token --api-key <key> --api-secret <secret> \
+   *     --join --room myroom --identity ameba-device
+   */
+  #define LIVEKIT_HOST   "rai-st6awu4a.livekit.cloud"
+  #define LIVEKIT_TOKEN  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzYxOTEwODQsImlkZW50aXR5IjoibWN1X3VzZXIiLCJpc3MiOiJBUEkzNzRuS0ZwU2JIekUiLCJuYW1lIjoibWN1X3VzZXIiLCJuYmYiOjE3NzYxMDQ2ODQsInN1YiI6Im1jdV91c2VyIiwidmlkZW8iOnsicm9vbSI6InRlc3Rfcm9vbSIsInJvb21Kb2luIjp0cnVlfX0.hqixDx0s7B5jC4c-zAbONtH0pmPK0LjVyoyrNhtxtjk"
+  // Token is passed as Bearer auth header, NOT in the URL path
+  #define SIGNALING_URL  "https://" LIVEKIT_HOST "/rtc/whip"
+#else
+  #define SIGNALING_URL  "mqtts://broker.emqx.io:8883/public/spotted-smart-eagle"
+#endif
 
 static PeerConnection *g_pc = NULL;
 static PeerConnectionState eState = PEER_CONNECTION_CLOSED;
@@ -65,11 +83,11 @@ static void main_loop_task(void *param) {
     printf("[libpeer] Main loop started (free heap: %d)\n", xPortGetFreeHeapSize());
     while (1) {
         // Disconnect MQTT/TLS signaling once ICE checking begins.
-        // At that point SDP answer and ICE candidates have been exchanged;
-        // MQTT is no longer needed. Disconnecting BEFORE checking is critical
-        // because peer_signaling_loop() blocks up to 3s on TLS read
-        // (CONFIG_TLS_READ_TIMEOUT=3000), which stalls ICE connectivity
-        // checks. Freeing the TLS session also recovers ~15 KB of heap.
+        // For MQTT: frees the TLS session (~15 KB) and stops the blocking
+        //   MQTT_ProcessLoop (3s TLS read timeout per iteration).
+        // For WHIP: signaling is already done (HTTP POST completed
+        //   synchronously in peer_signaling_connect), so g_signaling_active
+        //   is already 0 — this block won't execute.
         if (g_signaling_active && eState >= PEER_CONNECTION_CHECKING) {
             printf("[T+%dms] ICE checking — disconnecting signaling (free heap: %d)\n",
                    (int)(xTaskGetTickCount() * portTICK_PERIOD_MS), xPortGetFreeHeapSize());
@@ -95,8 +113,22 @@ static void peer_signaling_task(void *param) {
     // This task uses a large stack for the TLS handshake, then spawns
     // a smaller loop task and deletes itself to reclaim ~10KB heap.
     printf("[T+%dms] Free heap before signaling connect: %d\n", (int)(xTaskGetTickCount() * portTICK_PERIOD_MS), xPortGetFreeHeapSize());
+#ifdef USE_WHIP_SIGNALING
+    peer_signaling_connect(SIGNALING_URL, LIVEKIT_TOKEN, g_pc);
+#else
     peer_signaling_connect(SIGNALING_URL, "", g_pc);
+#endif
+
+#ifdef USE_WHIP_SIGNALING
+    // WHIP: signaling is done synchronously (HTTP POST completed).
+    // SDP answer already received — go straight to the main loop.
+    // No persistent signaling connection to maintain.
+    g_signaling_active = 0;
+    printf("[libpeer] WHIP signaling complete (free heap: %d)\n", xPortGetFreeHeapSize());
+#else
+    // MQTT: persistent connection needed to receive browser answer.
     g_signaling_active = 1;
+#endif
 
     // TLS handshake + MQTT connect + subscribe done.
     // Spawn a single loop task for BOTH peer_connection and signaling,

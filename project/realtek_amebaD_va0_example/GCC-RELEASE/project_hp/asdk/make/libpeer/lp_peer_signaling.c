@@ -22,7 +22,7 @@
 #define HOST_MAX_LEN 64
 #define URL_MAX_LEN (PATH_MAX_LEN + HOST_MAX_LEN + 8)
 #define TOPIC_MAX_LEN URL_MAX_LEN
-#define TOKEN_MAX_LEN 256
+#define TOKEN_MAX_LEN 512
 
 #define RPC_VERSION "2.0"
 #define RPC_METHOD_STATE "state"
