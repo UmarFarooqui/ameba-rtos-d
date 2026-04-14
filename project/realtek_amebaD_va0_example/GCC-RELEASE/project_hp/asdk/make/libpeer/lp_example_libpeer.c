@@ -29,8 +29,8 @@ int mbedtls_hardware_poll(void *data, unsigned char *output, size_t len, size_t 
 /* Define in6addr_any for usrsctp */
 const struct in6_addr in6addr_any = {{{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}};
 
-#define WIFI_SSID      "MyAltice 30331f"
-#define WIFI_PASSWORD  "chestnut-996-310"
+#define WIFI_SSID      "resideo-singh"
+#define WIFI_PASSWORD  "12345678"
 #define SIGNALING_URL  "mqtts://broker.emqx.io:8883/public/spotted-smart-eagle"
 
 static PeerConnection *g_pc = NULL;
@@ -50,8 +50,49 @@ static void onmessage(char *msg, size_t len, void *userdata, uint16_t sid) {
     }
 }
 
+static int g_datachannel_open = 0;
+static uint32_t g_stats_print_tick = 0;
+
+static void print_stats(void) {
+    uint32_t now = xTaskGetTickCount();
+    // Print every 10 seconds
+    if (now - g_stats_print_tick < pdMS_TO_TICKS(10000)) return;
+    g_stats_print_tick = now;
+
+    printf("\n=== STATS [T+%dms] ===\n", (int)(now * portTICK_PERIOD_MS));
+    printf("[HEAP] free=%d  min_ever=%d\n",
+           (int)xPortGetFreeHeapSize(), (int)xPortGetMinimumEverFreeHeapSize());
+
+    // PSRAM: psram_2.bin is 0 bytes — not used on this board
+    printf("[PSRAM] not configured (psram_2.bin=0)\n");
+
+    // Per-task CPU utilization (requires configGENERATE_RUN_TIME_STATS=1)
+#if configGENERATE_RUN_TIME_STATS
+    {
+        char buf[512];
+        printf("[CPU] Task           Abs Time     %%Time\n");
+        vTaskGetRunTimeStats(buf);
+        printf("%s", buf);
+    }
+#else
+    // Fallback: just list tasks with state and stack high-water mark
+    {
+        char buf[512];
+        printf("[TASKS] Name          State  Prio  StackFree  Num\n");
+        vTaskList(buf);
+        printf("%s", buf);
+    }
+#endif
+    printf("=== END STATS ===\n\n");
+}
+
 static void onopen(void *userdata) {
     printf("[T+%dms] Datachannel opened\n", (int)(xTaskGetTickCount() * portTICK_PERIOD_MS));
+    printf("[T+%dms] Steady-state free heap: %d  min_ever: %d\n",
+           (int)(xTaskGetTickCount() * portTICK_PERIOD_MS),
+           (int)xPortGetFreeHeapSize(), (int)xPortGetMinimumEverFreeHeapSize());
+    g_datachannel_open = 1;
+    g_stats_print_tick = 0; // force immediate stats print
 }
 
 static void onclose(void *userdata) {
@@ -64,12 +105,10 @@ static void main_loop_task(void *param) {
     // a Security Fault when pc_task and ps_loop were separate tasks.
     printf("[libpeer] Main loop started (free heap: %d)\n", xPortGetFreeHeapSize());
     while (1) {
-        // Disconnect MQTT/TLS signaling once ICE checking begins.
-        // At that point SDP answer and ICE candidates have been exchanged;
-        // MQTT is no longer needed. Disconnecting BEFORE checking is critical
-        // because peer_signaling_loop() blocks up to 3s on TLS read
-        // (CONFIG_TLS_READ_TIMEOUT=3000), which stalls ICE connectivity
-        // checks. Freeing the TLS session also recovers ~15 KB of heap.
+        // Disconnect MQTT/TLS signaling once ICE connectivity succeeds.
+        // At that point SDP and ICE candidates have been exchanged; MQTT
+        // is no longer needed. Freeing the TLS session recovers ~15 KB
+        // of heap that the DTLS-SRTP handshake needs.
         if (g_signaling_active && eState >= PEER_CONNECTION_CHECKING) {
             printf("[T+%dms] ICE checking — disconnecting signaling (free heap: %d)\n",
                    (int)(xTaskGetTickCount() * portTICK_PERIOD_MS), xPortGetFreeHeapSize());
@@ -83,6 +122,11 @@ static void main_loop_task(void *param) {
 
         if (g_signaling_active) {
             peer_signaling_loop();
+        }
+
+        // Print stats every 10s once datachannel is open
+        if (g_datachannel_open) {
+            print_stats();
         }
 
         vTaskDelay(pdMS_TO_TICKS(1));

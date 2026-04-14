@@ -82,12 +82,7 @@ static int agent_socket_recv(Agent* agent, Address* addr, uint8_t* buf, int len)
     }
   }
 
-  uint32_t sel_t1 = (uint32_t)ports_get_epoch_time();
   ret = select(maxfd + 1, &rfds, NULL, NULL, &tv);
-  uint32_t sel_t2 = (uint32_t)ports_get_epoch_time();
-  if ((sel_t2 - sel_t1) > 50) {
-    printf("[select] took %dms (expected %dms)\n", (int)(sel_t2 - sel_t1), AGENT_POLL_TIMEOUT);
-  }
   if (ret < 0) {
     LOGE("select error");
   } else if (ret == 0) {
@@ -283,6 +278,16 @@ void agent_gather_candidate(Agent* agent, const char* urls, const char* username
         printf("[T+%dms] STUN binding request start\n", (int)ports_get_epoch_time());
         agent_create_stun_addr(agent, &resolved_addr);
         printf("[T+%dms] STUN binding request done (local_candidates=%d)\n", (int)ports_get_epoch_time(), agent->local_candidates_count);
+        {
+          int ci;
+          for (ci = 0; ci < agent->local_candidates_count; ci++) {
+            char ca[46];
+            const char* typ = (agent->local_candidates[ci].type == ICE_CANDIDATE_TYPE_HOST) ? "host" :
+                              (agent->local_candidates[ci].type == ICE_CANDIDATE_TYPE_SRFLX) ? "srflx" : "relay";
+            addr_to_string(&agent->local_candidates[ci].addr, ca, sizeof(ca));
+            printf("[SDP] local candidate %d: %s:%d typ %s\n", ci, ca, agent->local_candidates[ci].addr.port, typ);
+          }
+        }
       } else if (strncmp(urls, "turn:", 5) == 0) {
         LOGD("Create turn addr");
         agent_create_turn_addr(agent, &resolved_addr, username, credential);
@@ -391,9 +396,11 @@ int agent_recv(Agent* agent, uint8_t* buf, int len) {
     stun_parse_msg_buf(&stun_msg);
     switch (stun_msg.stunclass) {
       case STUN_CLASS_REQUEST:
+        printf("[libpeer] STUN request from remote\n");
         agent_process_stun_request(agent, &stun_msg, &addr);
         break;
       case STUN_CLASS_RESPONSE:
+        printf("[libpeer] STUN response received!\n");
         agent_process_stun_response(agent, &stun_msg);
         break;
       case STUN_CLASS_ERROR:
@@ -460,6 +467,37 @@ void agent_update_candidate_pairs(Agent* agent) {
       }
     }
   }
+  // Sort pairs: same-subnet host pairs first (most likely to connect),
+  // then by ICE priority descending (RFC 8445 Section 6.1.2.3).
+  // On embedded devices with limited time/resources, trying reachable
+  // pairs first is critical.
+  for (i = 0; i < agent->candidate_pairs_num - 1; i++) {
+    for (j = i + 1; j < agent->candidate_pairs_num; j++) {
+      int i_same_subnet = 0, j_same_subnet = 0;
+      // Check if local and remote share the same /24 subnet (IPv4 only)
+      if (agent->candidate_pairs[i].local->addr.family == AF_INET &&
+          agent->candidate_pairs[i].remote->addr.family == AF_INET) {
+        uint32_t li = ntohl(agent->candidate_pairs[i].local->addr.sin.sin_addr.s_addr);
+        uint32_t ri = ntohl(agent->candidate_pairs[i].remote->addr.sin.sin_addr.s_addr);
+        if ((li & 0xFFFFFF00) == (ri & 0xFFFFFF00)) i_same_subnet = 1;
+      }
+      if (agent->candidate_pairs[j].local->addr.family == AF_INET &&
+          agent->candidate_pairs[j].remote->addr.family == AF_INET) {
+        uint32_t lj = ntohl(agent->candidate_pairs[j].local->addr.sin.sin_addr.s_addr);
+        uint32_t rj = ntohl(agent->candidate_pairs[j].remote->addr.sin.sin_addr.s_addr);
+        if ((lj & 0xFFFFFF00) == (rj & 0xFFFFFF00)) j_same_subnet = 1;
+      }
+      // Same-subnet pairs always come first; within same group, sort by priority
+      if (j_same_subnet > i_same_subnet ||
+          (j_same_subnet == i_same_subnet &&
+           agent->candidate_pairs[j].priority > agent->candidate_pairs[i].priority)) {
+        IceCandidatePair tmp = agent->candidate_pairs[i];
+        agent->candidate_pairs[i] = agent->candidate_pairs[j];
+        agent->candidate_pairs[j] = tmp;
+      }
+    }
+  }
+
   LOGD("candidate pairs num: %d", agent->candidate_pairs_num);
   printf("[libpeer] Candidate pairs: %d (local=%d, remote=%d)\n",
          agent->candidate_pairs_num, agent->local_candidates_count, agent->remote_candidates_count);
@@ -487,12 +525,23 @@ int agent_connectivity_check(Agent* agent) {
 
   if (agent->nominated_pair->conncheck % AGENT_CONNCHECK_PERIOD == 0) {
     addr_to_string(&agent->nominated_pair->remote->addr, addr_string, sizeof(addr_string));
-    LOGD("send binding request to remote ip: %s, port: %d", addr_string, agent->nominated_pair->remote->addr.port);
+    printf("[T+%dms] STUN req -> %s:%d (check %d)\n", (int)ports_get_epoch_time(), addr_string,
+           agent->nominated_pair->remote->addr.port,
+           agent->nominated_pair->conncheck);
     agent_create_binding_request(agent, &msg);
-    agent_socket_send(agent, &agent->nominated_pair->remote->addr, msg.buf, msg.size);
+    int send_ret = agent_socket_send(agent, &agent->nominated_pair->remote->addr, msg.buf, msg.size);
+    if (send_ret < 0) printf("[libpeer] STUN send failed: %d\n", send_ret);
   }
 
-  agent_recv(agent, buf, sizeof(buf));
+  // Drain all pending packets — a single recv may consume
+  // a binding request while a binding response is also queued
+  {
+    int rx;
+    for (rx = 0; rx < 5; rx++) {
+      if (agent_recv(agent, buf, sizeof(buf)) <= 0) break;
+      if (agent->nominated_pair->state == ICE_CANDIDATE_STATE_SUCCEEDED) break;
+    }
+  }
 
   if (agent->nominated_pair->state == ICE_CANDIDATE_STATE_SUCCEEDED) {
     agent->selected_pair = agent->nominated_pair;
@@ -516,8 +565,15 @@ int agent_select_candidate_pair(Agent* agent) {
       if (agent->candidate_pairs[i].conncheck < AGENT_CONNCHECK_MAX) {
         return 0;
       }
-      printf("[libpeer] Pair %d FAILED after %d checks\n", i, agent->candidate_pairs[i].conncheck);
       agent->candidate_pairs[i].state = ICE_CANDIDATE_STATE_FAILED;
+      {
+        char fa[46], fr[46];
+        addr_to_string(&agent->candidate_pairs[i].local->addr, fa, sizeof(fa));
+        addr_to_string(&agent->candidate_pairs[i].remote->addr, fr, sizeof(fr));
+        printf("[libpeer] Pair %d FAILED: %s:%d <-> %s:%d\n", i,
+               fa, agent->candidate_pairs[i].local->addr.port,
+               fr, agent->candidate_pairs[i].remote->addr.port);
+      }
     } else if (agent->candidate_pairs[i].state == ICE_CANDIDATE_STATE_FAILED) {
     } else if (agent->candidate_pairs[i].state == ICE_CANDIDATE_STATE_SUCCEEDED) {
       agent->selected_pair = &agent->candidate_pairs[i];

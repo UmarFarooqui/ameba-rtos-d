@@ -530,21 +530,6 @@ static const char* peer_connection_create_sdp(PeerConnection* pc, SdpType sdp_ty
     pc->onicecandidate(pc->sdp, pc->config.user_data);
   }
 
-  {
-    int ci;
-    for (ci = 0; ci < pc->agent.local_candidates_count; ci++) {
-      char ca[46];
-      addr_to_string(&pc->agent.local_candidates[ci].addr, ca, sizeof(ca));
-      const char* typ = "unknown";
-      switch (pc->agent.local_candidates[ci].type) {
-        case ICE_CANDIDATE_TYPE_HOST:  typ = "host";  break;
-        case ICE_CANDIDATE_TYPE_SRFLX: typ = "srflx"; break;
-        case ICE_CANDIDATE_TYPE_RELAY: typ = "relay"; break;
-        default: break;
-      }
-      printf("[SDP] local candidate %d: %s:%d typ %s\n", ci, ca, pc->agent.local_candidates[ci].addr.port, typ);
-    }
-  }
   printf("[T+%dms] SDP offer published\n", (int)ports_get_epoch_time());
   return pc->sdp;
 }
